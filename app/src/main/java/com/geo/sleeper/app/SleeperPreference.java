@@ -4,6 +4,16 @@ import android.annotation.SuppressLint;
 import android.content.Context;
 import android.content.SharedPreferences;
 import android.preference.PreferenceManager;
+import android.util.Log;
+
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.geo.sleeper.model.OneNightSleepingModel;
+import com.geo.sleeper.model.UserSleepindDetails;
+import com.geo.sleeper.utils.AppUtils;
+
+import java.util.ArrayList;
+import java.util.List;
 
 import static com.geo.sleeper.app.SleeperConstants.ZERO;
 
@@ -13,16 +23,13 @@ import static com.geo.sleeper.app.SleeperConstants.ZERO;
  */
 public class SleeperPreference {
 
-    public static final String KEY_SLEEPING_DATA = "SLEEPING DATA";
-    public static final String KEY_WAKEUP_DATA = "WAKEUP DATA";
+    public static final String KEY_SLEEPING_HISTORY = "SLEEPING DATA";
 
     @SuppressLint("StaticFieldLeak")
     private static SleeperPreference sSharedManager;
-    private Context context;
     private SharedPreferences sSharedPref;
 
     private SleeperPreference(Context context) {
-        this.context = context;
         setUpDefaultSharedPreferences(context);
     }
 
@@ -37,17 +44,105 @@ public class SleeperPreference {
         sSharedPref = PreferenceManager.getDefaultSharedPreferences(context);
     }
 
-    public void saveTime(int timeInMinit, String key) {
-        if (sSharedPref != null) {
-            sSharedPref.edit().putInt(key, timeInMinit).apply();
+    /**
+     * Convert String to Object
+     *
+     * @param message:
+     * @param mapperClassName : class name
+     * @return : Json object
+     */
+    private static Object toJsonObject(String message,
+                                       Class mapperClassName) {
+        try {
+            ObjectMapper mapper = new ObjectMapper();
+            return mapper.readValue(message,
+                    mapperClassName);
+        } catch (Exception ex) {
+            Log.e(ex.getMessage(), ex.getMessage(), ex);
+            return null;
         }
     }
 
-    public int getTime(String key) {
-        if(sSharedPref != null){
-            return sSharedPref.getInt(key,ZERO);
+    /**
+     * @param object: object
+     * @return : JSON string
+     */
+    private static String toJsonString(Object object) {
+        try {
+            ObjectMapper mapper = new ObjectMapper();
+            return mapper.writeValueAsString(object);
+        } catch (JsonProcessingException e) {
+            Log.e(e.getMessage(), e.getMessage(), e);
+            return null;
+        }
+    }
+
+    public void saveTodaysSleepTime(OneNightSleepingModel timeInMinit, String key) {
+        UserSleepindDetails userDetails = getUserSleepHistory(key);
+        List<OneNightSleepingModel> sleepingModel;
+        if (userDetails != null) {
+            sleepingModel = userDetails.getSleepingDetails();
         } else {
-            return ZERO;
+            userDetails = new UserSleepindDetails();
+            sleepingModel = new ArrayList<>();
+        }
+        /*
+          Each date have only one entry
+         */
+        if (sleepingModel.size() != 0) {
+            if (sleepingModel.get(sleepingModel.size() - 1).getDate().equals(AppUtils.getToday())) {
+                sleepingModel.remove(sleepingModel.size() - 1);
+            }
+        }
+        sleepingModel.add(timeInMinit);
+        userDetails.setSleepingDetails(sleepingModel);
+        saveDataAsJson(key, userDetails);
+    }
+
+    private UserSleepindDetails getUserSleepHistory(String key) {
+        Object response = getDataAsJson(key,
+                UserSleepindDetails.class);
+        if (response != null) {
+            return (UserSleepindDetails) response;
+        }
+        return null;
+    }
+
+    /**
+     * Save Data As Json in Preference
+     *
+     * @param key:  the key value
+     * @param data: the data to be stored
+     */
+    private void saveDataAsJson(String key, Object data) {
+        if (sSharedPref != null) {
+            SharedPreferences.Editor editor = sSharedPref.edit();
+            String json = toJsonString(data);
+            editor.putString(key, json);
+            editor.apply();
+        }
+    }
+
+    private Object getDataAsJson(String key, Class className) {
+        if (sSharedPref != null) {
+            String json = sSharedPref.getString(key, null);
+            if (json != null && json.length() > ZERO) {
+                return toJsonObject(json, className);
+            } else {
+                return null;
+            }
+        }
+        return null;
+    }
+
+    public String getTodaySleepTime(String key) {
+        UserSleepindDetails userDetails = getUserSleepHistory(key);
+        if (userDetails != null) {
+            OneNightSleepingModel sleepingModel = userDetails.getSleepingDetails().
+                    get(userDetails.getSleepingDetails().size() - 1);
+            return sleepingModel.getTime();
+        } else {
+            return null;
         }
     }
 }

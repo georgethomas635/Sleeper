@@ -7,7 +7,12 @@ import android.content.IntentFilter;
 import android.os.IBinder;
 import android.support.annotation.Nullable;
 import android.util.Log;
-import android.widget.Toast;
+
+import com.geo.sleeper.model.OneNightSleepingModel;
+import com.geo.sleeper.utils.AppUtils;
+import com.geo.sleeper.widgets.AccurateTimer;
+
+import static com.geo.sleeper.app.SleeperConstants.ZERO;
 
 /**
  * Created by george
@@ -15,7 +20,17 @@ import android.widget.Toast;
  */
 public class SleeperService extends Service {
 
-    BroadcastReceiver mReceiver=null;
+    private static final long COUNT_DOWN_INTERVAL = 1000;
+    //10 Hours is equal to 36000000 milliseconds
+    private static final long TOTAL_TIME = 36000000;
+    private static final long TOUNTDOWN_TIME = 20000;
+    //45 Minuts is equal to 2700000 milliseconds
+    private static final long MIN_SLEEP_TIME = 120000;
+    BroadcastReceiver mReceiver = null;
+    private AccurateTimer countUpTimer;
+    private AccurateTimer countDownTimer;
+    private boolean sleepFlag = false;
+
 
     @Nullable
     @Override
@@ -26,8 +41,6 @@ public class SleeperService extends Service {
     @Override
     public void onCreate() {
         super.onCreate();
-        // Toast.makeText(getBaseContext(), "Service on create", Toast.LENGTH_SHORT).show();
-
         // Register receiver that handles screen on and screen off logic
         IntentFilter filter = new IntentFilter(Intent.ACTION_SCREEN_ON);
         filter.addAction(Intent.ACTION_SCREEN_OFF);
@@ -40,33 +53,87 @@ public class SleeperService extends Service {
         super.onStart(intent, startId);
         boolean screenOn = false;
 
-        try{
-            // Get ON/OFF values sent from receiver ( AEScreenOnOffReceiver.java )
+        try {
             screenOn = intent.getBooleanExtra("screen_state", false);
 
-        }catch(Exception e){}
-
-        if (!screenOn) {
-
-            // your code here
-            // Some time required to start any service
-            Toast.makeText(getBaseContext(), "Screen on, ", Toast.LENGTH_SHORT).show();
-
-        } else {
-
-            // your code here
-            // Some time required to stop any service to save battery consumption
-            Toast.makeText(getBaseContext(), "Screen off,", Toast.LENGTH_SHORT).show();
-
-            int sleepingTime = SleeperPreference.getInstance(this).getTime(SleeperPreference.KEY_SLEEPING_DATA);
+        } catch (Exception e) {
+            Log.e(e.getMessage(), e.getMessage(), e);
         }
+        if (!screenOn) {
+            /*
+            Screen OFF
+             */
+            saveSleepTime();
+            startWakeupTimer();
+        } else {
+            /*
+              Screen ON
+             */
+            stopWakeupTimer();
+            startTime();
+        }
+    }
+
+    private void stopWakeupTimer() {
+        long wakeUpTime;
+        if (countUpTimer != null) {
+            wakeUpTime = countUpTimer.getTotalTime();
+            countUpTimer.stopTimer();
+
+            String wakeUpTimeInminuts = AppUtils.getFormattedTime(wakeUpTime);
+            if (wakeUpTime != ZERO) {
+                sleepFlag = true;
+            }
+            Log.e("***Wakeup Time***", wakeUpTimeInminuts);
+        }
+    }
+
+    private void startWakeupTimer() {
+        countDownTimer = new AccurateTimer(TOUNTDOWN_TIME, COUNT_DOWN_INTERVAL, false);
+        countDownTimer.startTimer();
+    }
+
+    private void saveSleepTime() {
+        long sleepTime;
+        String sleepTimeInminuts;
+        if (countUpTimer != null) {
+            sleepTime = countUpTimer.getTotalTime();
+            countUpTimer.stopTimer();
+            /*
+              sleepFlag is true when user is wakeup for a short time period in between his sleep
+              so add his previous sleep time duration.
+             */
+            if (sleepFlag) {
+                long sleepDuration = AppUtils.getTimeInMilliSeconds(SleeperPreference.getInstance(this).
+                        getTodaySleepTime(SleeperPreference.KEY_SLEEPING_HISTORY));
+                sleepTime = sleepTime + sleepDuration;
+            }
+            sleepTimeInminuts = AppUtils.getFormattedTime(sleepTime);
+            /*
+              Sleep time is saved if it is less than 10 hours and greater than 45 Minuts
+             */
+            if (sleepTime > MIN_SLEEP_TIME) {//sleepTime < TOTAL_TIME && sleepTime > MIN_SLEEP_TIME
+                OneNightSleepingModel sleepindDetails = new OneNightSleepingModel();
+
+                sleepindDetails.setDate(AppUtils.getToday());
+                sleepindDetails.setTime(sleepTimeInminuts);
+                SleeperPreference.getInstance(this).saveTodaysSleepTime(sleepindDetails,
+                        SleeperPreference.KEY_SLEEPING_HISTORY);
+            }
+            Log.e("***Sleep Time***", sleepTimeInminuts);
+        }
+    }
+
+    private void startTime() {
+        countUpTimer = new AccurateTimer(ZERO, COUNT_DOWN_INTERVAL, true);
+        countUpTimer.startTimer();
     }
 
     @Override
     public void onDestroy() {
         super.onDestroy();
         Log.i("ScreenOnOff", "Service  distroy");
-        if(mReceiver!=null)
+        if (mReceiver != null)
             unregisterReceiver(mReceiver);
     }
 }
