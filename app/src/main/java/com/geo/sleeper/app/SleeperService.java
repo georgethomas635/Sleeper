@@ -9,8 +9,12 @@ import android.support.annotation.Nullable;
 import android.util.Log;
 
 import com.geo.sleeper.model.OneNightSleepingModel;
+import com.geo.sleeper.model.UserSleepindDetails;
 import com.geo.sleeper.utils.AppUtils;
 import com.geo.sleeper.widgets.AccurateTimer;
+
+import java.util.ArrayList;
+import java.util.List;
 
 import static com.geo.sleeper.app.SleeperConstants.ZERO;
 
@@ -117,11 +121,34 @@ public class SleeperService extends Service {
 
                 sleepindDetails.setDate(AppUtils.getToday());
                 sleepindDetails.setTime(sleepTimeInminuts);
-                SleeperPreference.getInstance(this).saveTodaysSleepTime(sleepindDetails,
-                        SleeperPreference.KEY_SLEEPING_HISTORY);
+                saveTodaysSleep(sleepindDetails);
             }
             Log.e("***Sleep Time***", sleepTimeInminuts);
         }
+    }
+
+    private void saveTodaysSleep(OneNightSleepingModel sleepindDetails) {
+        UserSleepindDetails userDetails = SleeperPreference.getInstance(this).
+                getUserSleepHistory(SleeperPreference.KEY_SLEEPING_HISTORY);
+        List<OneNightSleepingModel> sleepingModel;
+        if (userDetails != null) {
+            sleepingModel = userDetails.getSleepingDetails();
+        } else {
+            userDetails = new UserSleepindDetails();
+            sleepingModel = new ArrayList<>();
+        }
+        /*
+          Each date have only one entry
+         */
+        if (sleepingModel.size() != ZERO) {
+            if (sleepingModel.get(sleepingModel.size() - 1).getDate().equals(AppUtils.getToday())) {
+                sleepingModel.remove(sleepingModel.size() - 1);
+            }
+        }
+        sleepingModel.add(sleepindDetails);
+        userDetails.setSleepingDetails(sleepingModel);
+        SleeperPreference.getInstance(this).saveTodaysSleepTime(userDetails,
+                SleeperPreference.KEY_SLEEPING_HISTORY);
     }
 
     private void startTime() {

@@ -10,10 +10,6 @@ import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.geo.sleeper.model.OneNightSleepingModel;
 import com.geo.sleeper.model.UserSleepindDetails;
-import com.geo.sleeper.utils.AppUtils;
-
-import java.util.ArrayList;
-import java.util.List;
 
 import static com.geo.sleeper.app.SleeperConstants.ZERO;
 
@@ -77,29 +73,11 @@ public class SleeperPreference {
         }
     }
 
-    public void saveTodaysSleepTime(OneNightSleepingModel timeInMinit, String key) {
-        UserSleepindDetails userDetails = getUserSleepHistory(key);
-        List<OneNightSleepingModel> sleepingModel;
-        if (userDetails != null) {
-            sleepingModel = userDetails.getSleepingDetails();
-        } else {
-            userDetails = new UserSleepindDetails();
-            sleepingModel = new ArrayList<>();
-        }
-        /*
-          Each date have only one entry
-         */
-        if (sleepingModel.size() != 0) {
-            if (sleepingModel.get(sleepingModel.size() - 1).getDate().equals(AppUtils.getToday())) {
-                sleepingModel.remove(sleepingModel.size() - 1);
-            }
-        }
-        sleepingModel.add(timeInMinit);
-        userDetails.setSleepingDetails(sleepingModel);
+    public void saveTodaysSleepTime(UserSleepindDetails userDetails, String key) {
         saveDataAsJson(key, userDetails);
     }
 
-    private UserSleepindDetails getUserSleepHistory(String key) {
+    public UserSleepindDetails getUserSleepHistory(String key) {
         Object response = getDataAsJson(key,
                 UserSleepindDetails.class);
         if (response != null) {
