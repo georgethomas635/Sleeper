@@ -29,7 +29,7 @@ public class SleeperService extends Service {
     private static final long TOTAL_TIME = 36000000;
     private static final long TOUNTDOWN_TIME = 20000;
     //45 Minuts is equal to 2700000 milliseconds
-    private static final long MIN_SLEEP_TIME = 120000;
+    private static final long MIN_SLEEP_TIME = 2700000;
     BroadcastReceiver mReceiver = null;
     private AccurateTimer countUpTimer;
     private AccurateTimer countDownTimer;
@@ -116,7 +116,7 @@ public class SleeperService extends Service {
             /*
               Sleep time is saved if it is less than 10 hours and greater than 45 Minuts
              */
-            if (sleepTime > MIN_SLEEP_TIME) {//sleepTime < TOTAL_TIME && sleepTime > MIN_SLEEP_TIME
+            if (sleepTime < TOTAL_TIME && sleepTime > MIN_SLEEP_TIME) {
                 OneNightSleepingModel sleepindDetails = new OneNightSleepingModel();
 
                 sleepindDetails.setDate(AppUtils.getToday());
@@ -127,6 +127,10 @@ public class SleeperService extends Service {
         }
     }
 
+    /**
+     * Save User sleeping details in storage
+     * @param sleepindDetails: date and time duration
+     */
     private void saveTodaysSleep(OneNightSleepingModel sleepindDetails) {
         UserSleepindDetails userDetails = SleeperPreference.getInstance(this).
                 getUserSleepHistory(SleeperPreference.KEY_SLEEPING_HISTORY);
