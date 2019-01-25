@@ -44,6 +44,7 @@ public class DashboardActivity extends AppCompatActivity {
 
     private void showUserSleepRecord(UserSleepindDetails userSleepHistory) {
         if(userSleepHistory!=null) {
+            imgEmpty.setVisibility(View.GONE);
             //Setup grid layout manager
             RecyclerView.LayoutManager layoutManager = new LinearLayoutManager(this);
             rvUserList.setLayoutManager(layoutManager);
